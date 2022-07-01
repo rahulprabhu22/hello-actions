@@ -100,16 +100,6 @@ jobs:
         resourceNumber=$(echo $params | jq .parameters.resourceNumber.value -r)
         rgName=$(printf rg-$orgId-$env-%03d $resourceNumber)
         echo $rgName
-    - id:   AzLogout
-      name: 'Az Logout and log trace clearing task'
-      run: |
-        echo "Cleaning Up"
-        params=$(cat ${{ inputs.parameterFilePath }})
-        orgId=$(echo $params | jq .parameters.organizationId.value -r)
-        env=$(echo $params | jq .parameters.environment.value -r)
-        resourceNumber=$(echo $params | jq .parameters.resourceNumber.value -r)
-        rgName=$(printf rg-$orgId-$env-%03d $resourceNumber)
-        echo $rgName
         echo "::set-output name=rgName::$rgName"
     - id:   SOut
       name: 'Az Logout and log trace clearing task'
