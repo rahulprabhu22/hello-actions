@@ -1,0 +1,106 @@
+name: 'Chanage Control Bicep Test'
+
+on:
+  workflow_dispatch: {}
+  push:
+    branches:
+      - ci-initial-53
+      - main
+
+  pull_request:
+    types:
+      - opened
+      - edited
+    branches:
+      - main 
+  
+
+jobs:
+  Bicep_test:
+    name: 'Run Bicep Tests'
+    runs-on: ubuntu-latest
+    environment: fareimagine
+
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - name: 'Checkout Repo'
+        uses: actions/checkout@v2
+        with:
+          #ref: 'ci-initial-53'
+          fetch-depth:  0
+        if: |
+          !cancelled()
+
+      - name: 'Diff Repo'
+        id: diff
+        shell: bash
+        run: |
+          mkdir -p tmp/diff-folder
+          if [ ! -z "$(git diff --name-status HEAD^ HEAD)" ]; then
+            echo $(git diff --name-status HEAD^ HEAD)
+            git diff --name-status HEAD^ HEAD > tmp/diff-folder/diff.txt
+          else
+            echo "There is no change to be processed."
+            exit 0
+          fi
+
+      - name: 'Make Changed Modules List'
+        shell: bash
+        run: |
+              awk '/modules/ {print $2}' tmp/diff-folder/diff.txt > tmp/diff-folder/diff2.txt
+              awk -F / '{print $4}' tmp/diff-folder/diff2.txt > tmp/diff-folder/diff3.txt
+              echo 'The following modules have been changed'
+              cat tmp/diff-folder/diff3.txt
+      
+      - name: 'Az CLI login'
+        uses: Azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+          allow-no-subscriptions: true
+        if: |
+          !cancelled()
+      
+      - name: 'Bicep What-If On Changed Modules'
+        uses: Azure/cli@1.0.4
+        with:
+          inlinescript: |
+            if [ -s test.txt ]; then
+              input="tmp/diff-folder/diff3.txt"
+              while read line
+              do
+                if [[ $line =~ README.md ]]; 
+                then
+                  echo "skip $line file"
+                elif [[ $line =~ roleAssignment ]]; 
+                then
+                  echo "$line"
+                  az deployment mg what-if --template-file "./infra-as-code/bicep/modules/roleAssignments/roleAssignmentManagementGroup.bicep" --parameters "./infra-as-code/bicep/parameters/ci/roleAssignment.parameters.ci.json" --name ci_role_assignment_mg --management-group-id 3f6f0053-8fe0-41cc-9abf-bb145ac43f0a --location eastus2
+                  az deployment mg what-if --template-file "./infra-as-code/bicep/modules/roleAssignments/roleAssignmentSubscription.bicep" --parameters "./infra-as-code/bicep/parameters/ci/roleAssignment.parameters.ci.json" --name ci_role_assignment_sub --management-group-id 3f6f0053-8fe0-41cc-9abf-bb145ac43f0a --location eastus2
+                  az deployment mg what-if --template-file "./infra-as-code/bicep/modules/roleAssignments/roleAssignmentMany.bicep" --parameters "./infra-as-code/bicep/parameters/ci/roleAssignmentMany.parameters.ci.json" --name ci_role_assignment_many --management-group-id 3f6f0053-8fe0-41cc-9abf-bb145ac43f0a --location eastus2
+                elif [[ $line =~ subscriptions || $line =~ managementGroups ]];
+                then
+                  echo "$line"
+                  az deployment mg what-if --template-file "./infra-as-code/bicep/modules/$line/$line.bicep" --parameters "./infra-as-code/bicep/parameters/ci/$line.parameters.ci.json" --name ci_$line --management-group-id 3f6f0053-8fe0-41cc-9abf-bb145ac43f0a --location eastus2
+                elif [[ $line =~ resourceGroup ]];
+                then 
+                  echo "$line"
+                  az deployment sub what-if --template-file "./infra-as-code/bicep/modules/$line/$line.bicep" --parameters "./infra-as-code/bicep/parameters/ci/$line.parameters.ci.json" --name ci_resourceGroup --subscription 710f0f5f-209f-419a-9e99-101297b16991 --location eastus2
+                else     
+                  echo "$line"
+                  az account set --subscription 91384b1f-ff36-48d0-aa31-82a57fd91c05
+                  az deployment group what-if --template-file "./infra-as-code/bicep/modules/$line/$line.bicep" --parameters "./infra-as-code/bicep/parameters/ci/$line.parameters.ci.json" --name ci_$line --resource-group rg-hub-ci-test-001 --location eastus2
+                fi
+              done <"$input"
+            else 
+              echo "no modules changed"
+            fi
+
+      - id:   AzLogout
+        name: 'Az Logout'
+        run: |
+          az logout
+          az cache purge
+          az account clear

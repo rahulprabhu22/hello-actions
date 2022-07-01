@@ -1,0 +1,106 @@
+name: Deployment Workflow for Hub/Spoke
+
+on:
+  workflow_dispatch:
+    inputs:
+      workload:
+        description: Name of the Workload. Can be either "hub" or "spoke"
+        required: true
+        type: choice
+        options:
+        - hub
+        - spoke
+      subscriptionId:
+        description: ID of the subscription to deploy the resources
+        required: true
+        type: string
+      parameterFilePath:
+        description: Path to the parameter json file to use for the deployment
+        required: true
+        type: string
+      region:
+        description: Region to Deploy
+        required: true
+        type: string
+        options:
+        - eastus2
+        - eastus
+      initiate_cleanup:
+        description: 'True to print to STDOUT'
+        required: false
+        type: boolean
+        default: false 
+
+jobs:
+  deployment:
+    runs-on: ubuntu-latest
+    environment: fareimagine
+    steps:
+    - uses: actions/checkout@v3
+    - name: 'Az CLI login'
+      uses: azure/login@v1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+        allow-no-subscriptions: true
+    - name: Run Bicep linter for ${{ inputs.workload }} Deployment
+      run: az bicep build --file infra-as-code/bicep/modules/${{ inputs.workload }}/${{ inputs.workload }}.bicep
+    - name: Validate ${{ inputs.workload }} Deployment
+      uses: azure/arm-deploy@v1
+      with:
+        scope: subscription
+        deploymentName: ${{ inputs.workload }}-deployment-validate
+        subscriptionId: ${{ inputs.subscriptionId }}        
+        template: infra-as-code/bicep/modules/${{ inputs.workload }}/${{ inputs.workload }}.bicep
+        parameters: ${{ inputs.parameterFilePath }}
+        region: ${{ inputs.region }}
+        deploymentMode: Validate 
+    - uses: azure/arm-deploy@v1
+      name: What-if ${{ inputs.workload }} Deployment
+      with:
+        scope: subscription
+        deploymentName: ${{ inputs.workload }}-deployment-what-if
+        subscriptionId: ${{ inputs.subscriptionId }}       
+        template: infra-as-code/bicep/modules/${{ inputs.workload }}/${{ inputs.workload }}.bicep
+        parameters:  ${{ inputs.parameterFilePath }}
+        additionalArguments: "--what-if"
+        region: ${{ inputs.region }}
+        failOnStdErr: false
+    - uses: azure/arm-deploy@v1
+      id: deploy
+      name: ${{ inputs.workload }} Deployment
+      with:
+        scope: subscription
+        deploymentName: ${{ inputs.workload }}-deployment
+        subscriptionId: ${{ inputs.subscriptionId }}          
+        template: infra-as-code/bicep/modules/${{ inputs.workload }}/${{ inputs.workload }}.bicep
+        parameters: ${{ inputs.parameterFilePath }}
+        region: ${{ inputs.region }}
+        failOnStdErr: false
+    - id:   AzLogout
+      name: 'Az Logout and log trace clearing task'
+      run: |
+        az logout
+        az cache purge
+        az account clear
+
+  cleanup:
+    runs-on: ubuntu-latest
+    environment: fareimagine
+    steps:
+    - uses: actions/checkout@v3
+    - name: 'Az CLI login'
+      uses: azure/login@v1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+        allow-no-subscriptions: true   
+    - uses: azure/arm-deploy@v1
+      name: What-if ${{ inputs.workload }} Deployment
+      with:
+        scope: subscription
+        deploymentName: ${{ inputs.workload }}-deployment-what-if
+        subscriptionId: ${{ inputs.subscriptionId }}       
+        template: infra-as-code/bicep/modules/${{ inputs.workload }}/${{ inputs.workload }}.bicep
+        parameters:  ${{ inputs.parameterFilePath }}
+        additionalArguments: "--what-if"
+        region: ${{ inputs.region }}
+        failOnStdErr: false  
