@@ -33,6 +33,7 @@ on:
 
 jobs:
   deployment:
+    if: ! ${{ inputs.initiate_cleanup }}
     runs-on: ubuntu-latest
     environment: fareimagine
     steps:
@@ -54,17 +55,17 @@ jobs:
     #     parameters: ${{ inputs.parameterFilePath }}
     #     region: ${{ inputs.region }}
     #     deploymentMode: Validate 
-    # - uses: azure/arm-deploy@v1
-    #   name: What-if ${{ inputs.workload }} Deployment
-    #   with:
-    #     scope: subscription
-    #     deploymentName: ${{ inputs.workload }}-deployment-what-if
-    #     subscriptionId: ${{ inputs.subscriptionId }}       
-    #     template: infra-as-code/bicep/modules/${{ inputs.workload }}/${{ inputs.workload }}.bicep
-    #     parameters:  ${{ inputs.parameterFilePath }}
-    #     additionalArguments: "--what-if"
-    #     region: ${{ inputs.region }}
-    #     failOnStdErr: false
+    - uses: azure/arm-deploy@v1
+      name: What-if ${{ inputs.workload }} Deployment
+      with:
+        scope: subscription
+        deploymentName: ${{ inputs.workload }}-deployment-what-if
+        subscriptionId: ${{ inputs.subscriptionId }}       
+        template: infra-as-code/bicep/modules/${{ inputs.workload }}/${{ inputs.workload }}.bicep
+        parameters:  ${{ inputs.parameterFilePath }}
+        additionalArguments: "--what-if"
+        region: ${{ inputs.region }}
+        failOnStdErr: false
     # - uses: azure/arm-deploy@v1
     #   id: deploy
     #   name: ${{ inputs.workload }} Deployment
@@ -99,6 +100,34 @@ jobs:
         resourceNumber=$(echo $params | jq .parameters.resourceNumber.value -r)
         rgName=$(printf rg-$orgId-$env-%03d $resourceNumber)
         echo $rgName
+    - id:   AzLogout
+      name: 'Az Logout and log trace clearing task'
+      run: |
+        echo "Cleaning Up"
+        params=$(cat ${{ inputs.parameterFilePath }})
+        orgId=$(echo $params | jq .parameters.organizationId.value -r)
+        env=$(echo $params | jq .parameters.environment.value -r)
+        resourceNumber=$(echo $params | jq .parameters.resourceNumber.value -r)
+        rgName=$(printf rg-$orgId-$env-%03d $resourceNumber)
+        echo $rgName
+        echo "::set-output name=rgName::$rgName"
+    - id:   SOut
+      name: 'Az Logout and log trace clearing task'
+      run: |
+        echo "Resoure Group: ${{ steps.AzLogout.outputs.rgName }}"
+        
+    # - uses: azure/arm-deploy@v1
+    #   name: What-if ${{ inputs.workload }} Deployment
+    #   with:
+    #     scope: subscription
+    #     deploymentName: ${{ inputs.workload }}-deployment-what-if
+    #     subscriptionId: ${{ inputs.subscriptionId }}       
+    #     template: cleanup.bicep
+    #     parameters:  ${{ inputs.parameterFilePath }}
+    #     additionalArguments: "--what-if"
+    #     region: ${{ inputs.region }}
+    #     failOnStdErr: false
+    #     deploymentMode: Complete
     # - name: 'Az CLI login'
     #   uses: azure/login@v1
     #   with:
