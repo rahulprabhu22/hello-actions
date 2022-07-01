@@ -26,7 +26,7 @@ on:
         - eastus2
         - eastus
       initiate_cleanup:
-        description: 'True to print to STDOUT'
+        description: 'Initiate Cleanup'
         required: true
         type: boolean
         default: true 
@@ -93,6 +93,12 @@ jobs:
       name: 'Az Logout and log trace clearing task'
       run: |
         echo "Cleaning Up"
+        params=$(cat ${{ inputs.parameterFilePath }})
+        orgId=$(echo $params | jq .parameters.organizationId.value -r)
+        env=$(echo $params | jq .parameters.environment.value -r)
+        resourceNumber=$(echo $params | jq .parameters.resourceNumber.value -r)
+        rgName=$(printf rg-$orgId-$env-%03d $resourceNumber)
+        echo $rgName
     # - name: 'Az CLI login'
     #   uses: azure/login@v1
     #   with:

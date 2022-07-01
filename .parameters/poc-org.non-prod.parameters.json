@@ -1,0 +1,60 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "organizationId": {
+      "value": "poc-org"
+    },
+    "environment": {
+      "value": "dev"
+    },
+    "resourceNumber": {
+      "value": 1
+    },
+    "addressPrefixes": {
+      "value": [
+        "10.51.0.0/16"
+      ]
+    },
+    "subnets": {
+      "value": [
+        {
+          "name": "snet-apim-001",
+          "addressPrefix": "10.51.0.0/26"
+        },
+        {
+          "name": "snet-application-002",
+          "addressPrefix": "10.51.1.0/24",
+          "delegations": [
+            { 
+              "name": "snet-application-002",
+              "properties": {
+                "serviceName": "Microsoft.Web/serverFarms"
+            }
+            } 
+        ]
+        }
+      ]
+    },
+    "tags": {
+      "value": {
+        "Org": "SPOKE"
+      }
+    },
+    "publisherEmail": {
+      "value": "sudha.jampana@fadv.com"
+    },
+    "publisherName": {
+      "value": "Fadv"
+    },
+    "publicNetworkAccess": {
+      "value": "Enabled"
+    },
+    "sku": {
+      "value": "Developer"
+    },
+    "virtualNetworkType": {
+      "value": "Internal"
+    }
+  }
+}
