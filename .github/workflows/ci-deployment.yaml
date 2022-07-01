@@ -27,7 +27,7 @@ on:
         - eastus
       initiate_cleanup:
         description: 'True to print to STDOUT'
-        required: false
+        required: true
         type: boolean
         default: false 
 
