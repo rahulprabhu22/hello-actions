@@ -33,7 +33,7 @@ on:
 
 jobs:
   deployment:
-    if: ! ${{ inputs.initiate_cleanup }}
+    if: ${{ !inputs.initiate_cleanup }}
     runs-on: ubuntu-latest
     environment: fareimagine
     steps:
