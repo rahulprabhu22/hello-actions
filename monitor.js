@@ -1,65 +1,39 @@
 const https = require('https');
-const crypto = require('node:crypto');
-const ossl = require('openssl-wrapper');
+const crypto = require('crypto');
+const assert = require("assert");
 
-const pinnedCert = [
-  {
-    pki: '',
-    sha256fingerprint: ''
-  },
-  {
-    pki: '',
-    sha256fingerprint: ''
-  }
-]
-
-function getPublicKey(certificate,level) {
-  ossl.exec('x509', certificate, { inform: 'der', outform: 'pem' }, (err, buffer) => {
-    const publicKey = buffer.toString('utf8'); // PEM encoded public key safe to use now
-    console.log(publicKey,level,sha256(publicKey))
-    if (sha256(publicKey) === pinnedCert[level].pki) {
-      console.log("Public Key Matches")
-    }
-    else {
-      console.log("Alert: Public Key Does Not match")
-    }
-  })
-}
-async function getUrl() {
-  const resp = https.get('https://google.edgekey-staging.net', {
-    headers: { host: 'www.google.org' }
-  }, async res => {
-    // console.log('okay', res.headers);
-    let cert = res.socket.getPeerCertificate(true);
-    let list = new Set();
-    let level = 0
-    do {
-      list.add(cert);
-      console.log("Subject:", cert.subject.CN);
-      let rawCertificate = cert.raw
-      if (level < 2){
-        getPublicKey(rawCertificate,level)
-      }
-      console.log(Buffer.from(cert.fingerprint256).toString('base64'))
-      if (Buffer.from(cert.fingerprint256).toString('base64') === pinnedCert[level].sha256fingerprint) {
-        console.log("Fingerprint Matches")
-      }
-      else {
-        console.log("Alert: Fingerprint Does Not match")
-      }
-      level ++;
-      cert = cert.issuerCertificate;
-    } while (cert && typeof cert === "object" && !list.has(cert));
-  }).on('error', e => {
-    console.log('E', e.message);
-  });
-}
-
-
-
-getUrl()
-
+const members1stSPKI = ''
+const intermediateCertificateSPKI = ''
 
 function sha256(input) {
-  return crypto.createHash('sha256').update(input).digest('hex');
+  return crypto.createHash('sha256').update(input).digest();
 }
+
+function getCertificateSPKI(certificate){
+  const pemHeader = '-----BEGIN CERTIFICATE-----\n';
+  const pemFooter = '-----END CERTIFICATE-----\n';
+  const base64Cert = certificate.toString('base64');
+  let pemCertificate = pemHeader;
+  for (let i = 0; i < base64Cert.length; i += 64) {
+    pemCertificate += base64Cert.slice(i, i + 64) + '\n';
+  }
+  pemCertificate += pemFooter;
+  let pkey = crypto.createPublicKey(pemCertificate).export({ type: 'spki', format: 'der' })
+  return Buffer.from(sha256(Buffer.from(pkey))).toString('base64');
+}
+
+
+const resp = https.get('https://members1st.edgekey-staging.net', {
+  headers: { host: 'www.members1st.org' }
+}, async res => {
+
+  const certificate = res.socket.getPeerCertificate(true);
+  const members1stCertificate = certificate.raw
+  const intermediateCertificate = certificate.issuerCertificate.raw
+
+  assert.equal(res.headers['x-akamai-staging'],'ESSL','Failed to hit the Staging Endpoint')
+  assert.equal(getCertificateSPKI(members1stCertificate),members1stSPKI,'members1st.org SPKI Hash Does Not Match')
+  assert.equal(getCertificateSPKI(intermediateCertificate),intermediateCertificateSPKI,'Intermediate Certificate SPKI Hash Does Not Match')
+}).on('error', e => {
+  console.log('Error', e.message);
+});
