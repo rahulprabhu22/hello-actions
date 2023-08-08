@@ -5,6 +5,10 @@ const assert = require("assert");
 const members1stSPKI = ''
 const intermediateCertificateSPKI = ''
 
+const environment = 'STAGING'
+
+const endpoint =  environment == 'STAGING' ? 'members1st.edgekey-staging.net' : 'www.members1st.org'
+
 function sha256(input) {
   return crypto.createHash('sha256').update(input).digest();
 }
@@ -23,7 +27,7 @@ function getCertificateSPKI(certificate){
 }
 
 
-const resp = https.get('https://members1st.edgekey-staging.net', {
+const resp = https.get(`https://${endpoint}`, {
   headers: { host: 'www.members1st.org' }
 }, async res => {
 
@@ -31,7 +35,9 @@ const resp = https.get('https://members1st.edgekey-staging.net', {
   const members1stCertificate = certificate.raw
   const intermediateCertificate = certificate.issuerCertificate.raw
 
-  assert.equal(res.headers['x-akamai-staging'],'ESSL','Failed to hit the Staging Endpoint')
+  if (environment == 'STAGING'){
+    assert.equal(res.headers['x-akamai-staging'],'ESSL','Failed to hit the Staging Endpoint')
+  }
   assert.equal(getCertificateSPKI(members1stCertificate),members1stSPKI,'members1st.org SPKI Hash Does Not Match')
   assert.equal(getCertificateSPKI(intermediateCertificate),intermediateCertificateSPKI,'Intermediate Certificate SPKI Hash Does Not Match')
 }).on('error', e => {
