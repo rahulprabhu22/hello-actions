@@ -1,9 +1,10 @@
-PYTHON_FULL_VERSION=$1
-echo $PYTHON_FULL_VERSION
-MAJOR_VERSION=$(echo $PYTHON_FULL_VERSION | cut -d '.' -f 1)
-MINOR_VERSION=$(echo $PYTHON_FULL_VERSION | cut -d '.' -f 2)
-PATCH_VERSION=$(echo $PYTHON_FULL_VERSION | cut -d '.' -f 3)
+PYTHON_VERSION=$1
+echo $PYTHON_VERSION
+MAJOR_VERSION=$(echo $PYTHON_VERSION | cut -d '.' -f 1)
+MINOR_VERSION=$(echo $PYTHON_VERSION | cut -d '.' -f 2)
+PATCH_VERSION=$(echo $PYTHON_VERSION | cut -d '.' -f 3)
 [[ -z "$PATCH_VERSION" ]] && PATCH_VERSION=0
+PYTHON_FULL_VERSION="$MAJOR_VERSION.$MINOR_VERSION.$PATCH_VERSION"
 mkdir -p /tools/Python
 cd  /tools/Python
 curl -s https://raw.githubusercontent.com/actions/python-versions/main/versions-manifest.json > py_versions.json
