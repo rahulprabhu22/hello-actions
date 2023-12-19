@@ -43,3 +43,16 @@ const resp = https.get(`https://${endpoint}`, {
 }).on('error', e => {
   console.log('Error', e.message);
 });
+
+
+
+function extractUrlsFromString(inputString)
+ {
+    const urlRegex =  /https:\/\/dev\.azure\.com\/[^\s]+\/pullrequests\/\d+/g;
+    return inputString.match(urlRegex) || [];
+}
+
+const inputString= "https://dev.azure.com/organization/project/pullrequests/456. Check out this Azure DevOps pull request: https://dev.azure.com/organization/project/pullrequests/123. Also, visit another pull request: https://dev.azure.com/organization/project/pullrequests/456.";
+const urls = extractUrlsFromString(inputString);
+console.log(urls);
+
